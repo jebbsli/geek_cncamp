@@ -1,0 +1,101 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: server-cm
+  namespace: default
+data:
+  config.yaml: |
+    server:
+      address: ":8000"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gk-cncamp-server
+  namespace: default
+spec:
+  replicas: 1 # 可以支持多副本，实现服务高可用
+  selector:
+    matchLabels:
+      app: gk-cncamp-server
+  template:
+    metadata:
+      name: gk-cncamp-server
+      namespace: default
+      labels:
+        app: gk-cncamp-server
+    spec:
+      containers:
+        - name: server
+          image: jebbsli/gk_cncamp_server:v0.0.1
+          imagePullPolicy: Always
+          resources:  # guaranteed
+            requests:
+              cpu: 1
+              memory: 100Mi
+            limits:
+              cpu: 1
+              memory: 100Mi
+          startupProbe:  # 优雅启动示例
+            initialDelaySeconds: 10
+            exec:
+              command: ["/bin/sh", "-c", "echo server is starting"]
+          livenessProbe: # 存活探测
+            initialDelaySeconds: 5
+            periodSeconds: 3
+            successThreshold: 1
+            httpGet:
+              path: /
+              port: 8000
+          readinessProbe: # 就绪探测
+            initialDelaySeconds: 5
+            periodSeconds: 3
+            successThreshold: 1
+            httpGet:
+              path: /
+              port: 8000
+          lifecycle:
+            preStop:  # 优雅终止示例
+              exec:
+                command: ["/bin/sh", "-c", "echo server is stopping"]
+          volumeMounts:
+            - name: server-cm
+              mountPath: /app
+      volumes:
+        - name: server-cm
+          configMap:
+            name: server-cm
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: gk-cncamp-server
+  namespace: default
+spec:
+  selector:
+    app: gk-cncamp-server
+  ports:
+    - name: http
+      protocol: TCP
+      port: 8000
+      targetPort: 8000
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: gk-cncamp-server
+  namespace: default
+spec:
+  rules:
+    - http:
+        paths:
+          - pathType: Prefix
+            path: "/"
+            backend:
+              service:
+                name: gk-cncamp-server
+                port:
+                  number: 8000
+  tls:
+    - secretName: "secret name"  # 创建一个secret保存证书
+

@@ -10,7 +10,7 @@ build:
 
 image.%:
 	make build
-	docker buildx build --platform linux/amd64 -f Dockerfile -t jebbsli/geek_cncamp:${*} .
+	docker build --platform linux/amd64 -f Dockerfile -t jebbsli/geek_cncamp:${*} .
 
 push.%:
 	make image.${*}
